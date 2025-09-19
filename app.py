@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 import os, sys, traceback
 
 app = Flask(__name__)
@@ -11,28 +12,32 @@ def extract():
         return jsonify({"error": "Missing URL"}), 400
 
     try:
-        print("[INFO] Starting Playwright...", file=sys.stderr, flush=True)
         with sync_playwright() as p:
-            print("[INFO] Launching Chromium...", file=sys.stderr, flush=True)
             browser = p.chromium.launch(
                 headless=True,
                 args=[
-                    "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
                     "--single-process",
                     "--no-zygote",
-                    "--disable-software-rasterizer",
                 ],
             )
-            print("[INFO] Chromium launched!", file=sys.stderr, flush=True)
-
             page = browser.new_page()
-            print(f"[INFO] Navigating to {url}", file=sys.stderr, flush=True)
-            page.goto(url, timeout=90000, wait_until="domcontentloaded")
 
-            print("[INFO] Extracting text...", file=sys.stderr, flush=True)
+            # Apply stealth evasion
+            stealth_sync(page)
+
+            # Add realistic headers
+            page.set_extra_http_headers({
+                "Accept-Language": "en-US,en;q=0.9",
+                "Cache-Control": "no-cache",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/114.0.5735.199 Safari/537.36"
+            })
+
+            page.goto(url, timeout=90000, wait_until="domcontentloaded")
             text = page.inner_text("body")
             browser.close()
 
@@ -46,7 +51,7 @@ def extract():
         print(f"[ERROR] {err}", file=sys.stderr, flush=True)
         return jsonify({
             "URL": url,
-            "article": f"[ERROR] Navigation/Extraction exception: {str(e)}",
+            "article": f"[ERROR] {str(e)}",
             "success": False
         }), 500
 
