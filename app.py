@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from freeproxy import FreeProxy
+from freeproxy import FreeProxy   # ✅ correct import
+import os, random
+
 
 import os, random
 
