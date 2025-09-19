@@ -19,16 +19,13 @@ def extract():
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                     "--disable-gpu",
+                    "--single-process",
+                    "--no-zygote",
                     "--disable-software-rasterizer",
-                    "--disable-extensions",
-                    "--disable-background-networking",
-                    "--disable-background-timer-throttling",
-                    "--disable-renderer-backgrounding",
-                    "--disable-features=site-per-process,TranslateUI,BlinkGenPropertyTrees",
                 ],
             )
             page = browser.new_page()
-            page.goto(url, timeout=60000, wait_until="networkidle")
+            page.goto(url, timeout=90000, wait_until="networkidle")
             text = page.inner_text("body")
             browser.close()
 
@@ -40,7 +37,7 @@ def extract():
     except Exception as e:
         return jsonify({
             "URL": url,
-            "article": f"[ERROR] Navigation/Extraction exception: {str(e)} | HTML_SNIPPET: ",
+            "article": f"[ERROR] Navigation/Extraction exception: {str(e)}",
             "success": False
         }), 500
 
