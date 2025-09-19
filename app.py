@@ -1,30 +1,8 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-import requests
-from bs4 import BeautifulSoup
-import random, os
+import os
 
 app = Flask(__name__)
-
-def get_free_proxy():
-    """Scrape HTTPS proxies from free-proxy-list.net"""
-    try:
-        r = requests.get("https://free-proxy-list.net/", timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        rows = soup.find("table", id="proxylisttable").find_all("tr")
-        proxies = []
-        for row in rows[1:]:
-            cols = row.find_all("td")
-            if cols and cols[6].text.strip().lower() == "yes":  # only HTTPS proxies
-                proxies.append(f"{cols[0].text}:{cols[1].text}")
-        if proxies:
-            proxy = random.choice(proxies)
-            print(f"[Proxy Selected] {proxy}")
-            return proxy
-    except Exception as e:
-        print(f"[Proxy Error] {e}")
-    return None
-
 
 @app.route("/extract", methods=["GET"])
 def extract():
@@ -32,24 +10,34 @@ def extract():
     if not url:
         return jsonify({"error": "Missing URL"}), 400
 
-    proxy = get_free_proxy()
     try:
         with sync_playwright() as p:
-            launch_args = {"headless": True}
-            if proxy:
-                launch_args["proxy"] = {"server": f"http://{proxy}"}
+            # Stealth mode needs chromium
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                           "Chrome/120.0.0.0 Safari/537.36",
+                locale="en-US,en;q=0.9",
+                extra_http_headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Cache-Control": "no-cache",
+                }
+            )
+            page = context.new_page()
 
-            browser = p.chromium.launch(**launch_args)
-            page = browser.new_page()
-            page.goto(url, timeout=60000)
-
-            # Try to extract readable text
+            page.goto(url, timeout=60000, wait_until="domcontentloaded")
             text = page.inner_text("body")
+
             browser.close()
+
+        # Limit size
+        article = text[:8000] + ("... [truncated]" if len(text) > 8000 else "")
 
         return jsonify({
             "URL": url,
-            "article": text[:8000] + ("... [truncated]" if len(text) > 8000 else ""),
+            "article": article,
             "success": True
         })
     except Exception as e:
