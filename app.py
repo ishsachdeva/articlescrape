@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
 import os
 
-# ✅ Import stealth function correctly
-from playwright_stealth import stealth
+# Import stealth function properly
+import playwright_stealth
 
 app = Flask(__name__)
 
@@ -22,8 +22,8 @@ def extract():
                            "Chrome/117.0 Safari/537.36"
             )
 
-            # ✅ Apply stealth correctly
-            stealth(page)
+            # ✅ Correct: call stealth.stealth_sync(page)
+            playwright_stealth.stealth_sync(page)
 
             page.goto(url, timeout=60000, wait_until="networkidle")
             text = page.inner_text("body")
