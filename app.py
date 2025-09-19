@@ -1,21 +1,30 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from fp.fp import FreeProxy   # ✅ correct import
-import os, random
-
-
-import os, random
+import requests
+from bs4 import BeautifulSoup
+import random, os
 
 app = Flask(__name__)
 
 def get_free_proxy():
+    """Scrape HTTPS proxies from free-proxy-list.net"""
     try:
-        proxy = FreeProxy(country_id=['US','IN'], timeout=1, rand=True).get()
-        print(f"Using proxy: {proxy}")
-        return proxy
+        r = requests.get("https://free-proxy-list.net/", timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        rows = soup.find("table", id="proxylisttable").find_all("tr")
+        proxies = []
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if cols and cols[6].text.strip().lower() == "yes":  # only HTTPS proxies
+                proxies.append(f"{cols[0].text}:{cols[1].text}")
+        if proxies:
+            proxy = random.choice(proxies)
+            print(f"[Proxy Selected] {proxy}")
+            return proxy
     except Exception as e:
         print(f"[Proxy Error] {e}")
-        return None
+    return None
+
 
 @app.route("/extract", methods=["GET"])
 def extract():
@@ -33,6 +42,8 @@ def extract():
             browser = p.chromium.launch(**launch_args)
             page = browser.new_page()
             page.goto(url, timeout=60000)
+
+            # Try to extract readable text
             text = page.inner_text("body")
             browser.close()
 
@@ -47,6 +58,7 @@ def extract():
             "article": f"[ERROR] {str(e)}",
             "success": False
         }), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
