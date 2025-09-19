@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from fp.fp import FreeProxy
+from freeproxy import FreeProxy
+
 import os, random
 
 app = Flask(__name__)
