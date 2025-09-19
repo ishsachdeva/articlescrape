@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth   # ✅ correct import
-import os, sys, traceback
+from playwright_stealth import stealth   # ✅ import the function, not module
+import os
 
 app = Flask(__name__)
 
@@ -13,34 +13,12 @@ def extract():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--single-process",
-                    "--no-zygote",
-                ],
-            )
+            browser = p.chromium.launch(headless=True)
             page = browser.new_page()
 
-            # ✅ apply stealth
-            stealth(page)
+            stealth(page)   # ✅ apply stealth here
 
-            # Add headers
-            page.set_extra_http_headers({
-                "Accept-Language": "en-US,en;q=0.9",
-                "Cache-Control": "no-cache",
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/114.0.5735.199 Safari/537.36"
-                )
-            })
-
-            # Navigate
-            page.goto(url, timeout=90000, wait_until="domcontentloaded")
+            page.goto(url, timeout=60000, wait_until="domcontentloaded")
             text = page.inner_text("body")
             browser.close()
 
@@ -50,8 +28,6 @@ def extract():
             "success": True
         })
     except Exception as e:
-        err = traceback.format_exc()
-        print(f"[ERROR] {err}", file=sys.stderr, flush=True)
         return jsonify({
             "URL": url,
             "article": f"[ERROR] {str(e)}",
@@ -59,5 +35,5 @@ def extract():
         }), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
