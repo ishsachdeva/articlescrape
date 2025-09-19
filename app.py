@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth
+import playwright_stealth
 import os, sys, traceback
 
 app = Flask(__name__)
@@ -25,8 +25,8 @@ def extract():
             )
             page = browser.new_page()
 
-            # Apply stealth
-            stealth(page)
+            # ✅ Apply stealth correctly
+            playwright_stealth.stealth_sync(page)
 
             # Realistic headers
             page.set_extra_http_headers({
