@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-import os
+import os, sys, traceback
 
 app = Flask(__name__)
 
@@ -11,7 +11,9 @@ def extract():
         return jsonify({"error": "Missing URL"}), 400
 
     try:
+        print("[INFO] Starting Playwright...", file=sys.stderr, flush=True)
         with sync_playwright() as p:
+            print("[INFO] Launching Chromium...", file=sys.stderr, flush=True)
             browser = p.chromium.launch(
                 headless=True,
                 args=[
@@ -24,8 +26,13 @@ def extract():
                     "--disable-software-rasterizer",
                 ],
             )
+            print("[INFO] Chromium launched!", file=sys.stderr, flush=True)
+
             page = browser.new_page()
-            page.goto(url, timeout=90000, wait_until="networkidle")
+            print(f"[INFO] Navigating to {url}", file=sys.stderr, flush=True)
+            page.goto(url, timeout=90000, wait_until="domcontentloaded")
+
+            print("[INFO] Extracting text...", file=sys.stderr, flush=True)
             text = page.inner_text("body")
             browser.close()
 
@@ -35,6 +42,8 @@ def extract():
             "success": True
         })
     except Exception as e:
+        err = traceback.format_exc()
+        print(f"[ERROR] {err}", file=sys.stderr, flush=True)
         return jsonify({
             "URL": url,
             "article": f"[ERROR] Navigation/Extraction exception: {str(e)}",
