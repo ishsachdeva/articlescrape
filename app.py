@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth   # ✅ import the function, not module
+print("✅ Loaded stealth:", stealth)
 import os
 
 app = Flask(__name__)
