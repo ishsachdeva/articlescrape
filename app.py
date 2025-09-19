@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 import os
 
 app = Flask(__name__)
@@ -12,34 +13,42 @@ def extract():
 
     try:
         with sync_playwright() as p:
-            # Stealth mode needs chromium
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                           "AppleWebKit/537.36 (KHTML, like Gecko) "
-                           "Chrome/120.0.0.0 Safari/537.36",
-                locale="en-US,en;q=0.9",
-                extra_http_headers={
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Cache-Control": "no-cache",
-                }
+            # Launch Chromium in headless mode but with stealth args
+            browser = p.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"]
             )
-            page = context.new_page()
+            page = browser.new_page()
 
-            page.goto(url, timeout=60000, wait_until="domcontentloaded")
-            text = page.inner_text("body")
+            # Apply stealth to avoid bot detection
+            stealth_sync(page)
+
+            # Add human-like headers
+            page.set_extra_http_headers({
+                "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/120.0.0.0 Safari/537.36"
+            })
+
+            # Navigate and wait for JS to finish
+            page.goto(url, timeout=60000, wait_until="networkidle")
+            page.wait_for_timeout(5000)  # wait 5s for content to render
+
+            # Prefer <article> text, fallback to body
+            if page.query_selector("article"):
+                text = page.inner_text("article")
+            else:
+                text = page.inner_text("body")
 
             browser.close()
 
-        # Limit size
-        article = text[:8000] + ("... [truncated]" if len(text) > 8000 else "")
-
         return jsonify({
             "URL": url,
-            "article": article,
+            "article": text[:8000] + ("... [truncated]" if len(text) > 8000 else ""),
             "success": True
         })
+
     except Exception as e:
         return jsonify({
             "URL": url,
