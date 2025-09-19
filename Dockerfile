@@ -20,9 +20,12 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright
-RUN pip install --no-cache-dir playwright flask beautifulsoup4
-RUN playwright install chromium
+# Install Python dependencies including playwright-stealth
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright browser binaries
+RUN playwright install --with-deps chromium
 
 # Set workdir
 WORKDIR /app
@@ -33,5 +36,5 @@ COPY . .
 # Expose Flask port
 EXPOSE 8080
 
-# Run Flask
-CMD ["python", "app.py"]
+# Run the app with Gunicorn (more stable than flask dev server)
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
