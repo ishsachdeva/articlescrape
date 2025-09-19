@@ -1,7 +1,7 @@
 # Use Python base image
 FROM python:3.11-slim
 
-# Install system dependencies for Playwright
+# Install system dependencies for Playwright + Chromium
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -17,14 +17,14 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxrandr2 \
     libgbm1 \
+    libxshmfence1 \
+    libx11-dev \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies including playwright-stealth
+# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install Playwright browser binaries
 RUN playwright install --with-deps chromium
 
 # Set workdir
@@ -33,8 +33,8 @@ WORKDIR /app
 # Copy app files
 COPY . .
 
-# Expose Flask port
+# Expose Flask/Gunicorn port
 EXPOSE 8080
 
-# Run the app with Gunicorn (more stable than flask dev server)
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+# Run with gunicorn for production
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "app:app"]
