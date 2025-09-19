@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth   # ✅ import the function, not module
-print("✅ Loaded stealth:", stealth)
 import os
+
+# ✅ Import stealth function correctly
+from playwright_stealth import stealth
 
 app = Flask(__name__)
 
@@ -14,12 +15,17 @@ def extract():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            page = browser.new_page(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                           "Chrome/117.0 Safari/537.36"
+            )
 
-            stealth(page)   # ✅ apply stealth here
+            # ✅ Apply stealth correctly
+            stealth(page)
 
-            page.goto(url, timeout=60000, wait_until="domcontentloaded")
+            page.goto(url, timeout=60000, wait_until="networkidle")
             text = page.inner_text("body")
             browser.close()
 
