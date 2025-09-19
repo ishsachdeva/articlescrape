@@ -1,5 +1,7 @@
+# Use Python base image
 FROM python:3.11-slim
 
+# Install system dependencies for Playwright
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -15,19 +17,26 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxrandr2 \
     libgbm1 \
-    libxshmfence1 \
-    libx11-dev \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements
 COPY requirements.txt .
+
+# Install Python deps
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright Chromium
 RUN playwright install --with-deps chromium
 
+# Set workdir
 WORKDIR /app
+
+# Copy app files
 COPY . .
 
+# Expose Flask port
 EXPOSE 8080
 
-# 🔑 Use single worker to reduce memory usage
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:8080", "app:app"]
+# Run Gunicorn with single worker (to save RAM)
+CMD ["gunicorn", "--workers=1", "--timeout=120", "--bind=0.0.0.0:8080", "app:app"]
